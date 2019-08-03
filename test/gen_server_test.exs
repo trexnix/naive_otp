@@ -18,6 +18,48 @@ end
 defmodule GenServerTest do
   use ExUnit.Case
 
+  describe "start_link/3" do
+    test "must block until init/3 of given module has returned" do
+      defmodule GenServerTest.InitTest1 do
+        use NaiveOtp.GenServer
+
+        def init(_state) do
+          Process.sleep(100)
+          {:ok, nil}
+        end
+      end
+
+      time_start = NaiveDateTime.utc_now()
+      {:ok, pid} = NaiveOtp.GenServer.start_link(GenServerTest.InitTest1, nil)
+      time_end = NaiveDateTime.utc_now()
+
+      assert NaiveDateTime.diff(time_end, time_start, :millisecond) > 100
+      assert Process.alive?(pid)
+    end
+
+    test "must return respective errors when init/3 failed" do
+      defmodule GenServerTest.InitTest2 do
+        use NaiveOtp.GenServer
+
+        def init(_state) do
+          {:stop, :not_ok_at_all}
+        end
+      end
+
+      assert {:stop, :not_ok_at_all} = NaiveOtp.GenServer.start_link(GenServerTest.InitTest2, nil)
+
+      defmodule GenServerTest.InitTest3 do
+        use NaiveOtp.GenServer
+
+        def init(_state) do
+          :ignore
+        end
+      end
+
+      assert :ignore = NaiveOtp.GenServer.start_link(GenServerTest.InitTest3, nil)
+    end
+  end
+
   describe "handle_call/3" do
     test "should return result" do
       {:ok, pid} = NaiveOtp.GenServer.start_link(Counter, nil)

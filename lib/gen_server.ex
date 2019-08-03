@@ -8,15 +8,30 @@ defmodule NaiveOtp.GenServer do
     end
   end
 
+  @doc """
+  Mimic some behaviours described here: https://hexdocs.pm/elixir/GenServer.html#start_link/3
+  """
   def start_link(mod, init_arg, opts \\ []) do
-    pid =
-      spawn_link(fn ->
-        {:ok, init_state} = mod.init(init_arg)
+    parent = self()
 
-        loop(mod, init_state)
-      end)
+    spawn_link(fn ->
+      # init/1 callback has to be called in the context of the new process
+      case mod.init(init_arg) do
+        {:ok, init_state} = result ->
+          send(parent, {:"$initialized", {:ok, self()}})
+          loop(mod, init_state)
 
-    {:ok, pid}
+        error ->
+          send(parent, {:"$initialized", error})
+      end
+    end)
+
+    # Do not return until the new child process confirmed it has finished initialization (aka init/1 has returned)
+    receive do
+      {:"$initialized", {:ok, pid}} -> {:ok, pid}
+      {:"$initialized", {:stop, reason}} -> {:stop, reason}
+      {:"$initialized", :ignore} -> :ignore
+    end
   end
 
   def call(server_pid, request, timeout \\ 5000) do
