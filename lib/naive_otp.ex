@@ -1,0 +1,2 @@
+defmodule NaiveOtp do
+end
