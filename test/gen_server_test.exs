@@ -13,6 +13,10 @@ defmodule Counter do
     Process.sleep(1000)
     {:reply, state + 1, state + 1}
   end
+
+  def handle_cast(:increase, state) do
+    {:noreply, state + 1}
+  end
 end
 
 defmodule GenServerTest do
@@ -63,6 +67,7 @@ defmodule GenServerTest do
   describe "handle_call/3" do
     test "should return result" do
       {:ok, pid} = NaiveOtp.GenServer.start_link(Counter, nil)
+
       assert NaiveOtp.GenServer.call(pid, :get) == 0
       assert NaiveOtp.GenServer.call(pid, :increase) == 1
       assert NaiveOtp.GenServer.call(pid, :get) == 1
@@ -70,11 +75,22 @@ defmodule GenServerTest do
 
     test "should raise error when timeout reached" do
       {:ok, pid} = NaiveOtp.GenServer.start_link(Counter, nil)
+
       assert NaiveOtp.GenServer.call(pid, :get) == 0
 
       assert_raise(RuntimeError, fn ->
         NaiveOtp.GenServer.call(pid, :increase, 100)
       end)
+    end
+  end
+
+  describe "handle_cast/2" do
+    test "should return result" do
+      {:ok, pid} = NaiveOtp.GenServer.start_link(Counter, nil)
+
+      assert NaiveOtp.GenServer.call(pid, :get) == 0
+      NaiveOtp.GenServer.cast(pid, :increase)
+      assert NaiveOtp.GenServer.call(pid, :get) == 1
     end
   end
 end
