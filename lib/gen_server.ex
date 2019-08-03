@@ -5,6 +5,17 @@ defmodule NaiveOtp.GenServer do
 
   defmacro __using__(_) do
     quote do
+      require Logger
+
+      def handle_info(message, state) do
+        Logger.error(
+          "#{__MODULE__} received unexpected message in handle_info/2: #{inspect(message)}"
+        )
+
+        {:noreply, state}
+      end
+
+      defoverridable handle_info: 2
     end
   end
 
@@ -17,7 +28,7 @@ defmodule NaiveOtp.GenServer do
     spawn_link(fn ->
       # init/1 callback has to be called in the context of the new process
       case mod.init(init_arg) do
-        {:ok, init_state} = result ->
+        {:ok, init_state} ->
           send(parent, {:"$initialized", {:ok, self()}})
           loop(mod, init_state)
 
@@ -58,6 +69,10 @@ defmodule NaiveOtp.GenServer do
 
       {:"$cast", request} ->
         {:noreply, new_state} = apply(mod, :handle_cast, [request, state])
+        loop(mod, new_state)
+
+      other_message ->
+        {:noreply, new_state} = apply(mod, :handle_info, [other_message, state])
         loop(mod, new_state)
     end
   end

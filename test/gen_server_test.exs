@@ -22,6 +22,8 @@ end
 defmodule GenServerTest do
   use ExUnit.Case
 
+  import ExUnit.CaptureLog
+
   describe "start_link/3" do
     test "must block until init/3 of given module has returned" do
       defmodule GenServerTest.InitTest1 do
@@ -90,6 +92,49 @@ defmodule GenServerTest do
 
       assert NaiveOtp.GenServer.call(pid, :get) == 0
       NaiveOtp.GenServer.cast(pid, :increase)
+      assert NaiveOtp.GenServer.call(pid, :get) == 1
+    end
+  end
+
+  describe "handle_info/2" do
+    test "should use the default handle_info/2 callback" do
+      defmodule GenServerTest.HandleInfo1 do
+        use NaiveOtp.GenServer
+
+        def init(_state) do
+          {:ok, 0}
+        end
+      end
+
+      {:ok, pid} = NaiveOtp.GenServer.start_link(GenServerTest.HandleInfo1, nil)
+
+      assert capture_log(fn ->
+               send(pid, :strange_message)
+               Process.sleep(100)
+             end) =~ "received unexpected message in handle_info/2"
+    end
+
+    test "should use user-defined handle_info/2 callback" do
+      defmodule GenServerTest.HandleInfo2 do
+        use NaiveOtp.GenServer
+
+        def init(_state) do
+          {:ok, 0}
+        end
+
+        def handle_info(:expected_message, state) do
+          {:noreply, state + 1}
+        end
+
+        def handle_call(:get, _from, state) do
+          {:reply, state, state}
+        end
+      end
+
+      {:ok, pid} = NaiveOtp.GenServer.start_link(GenServerTest.HandleInfo2, nil)
+
+      send(pid, :expected_message)
+
       assert NaiveOtp.GenServer.call(pid, :get) == 1
     end
   end
