@@ -66,6 +66,37 @@ defmodule GenServerTest do
     end
   end
 
+  describe ":sys module" do
+    test "should responds current state to :sys.get_state/1 call" do
+      defmodule GenServerTest.Sys0 do
+        use NaiveOtp.GenServer
+
+        def init(_state) do
+          {:ok, 0}
+        end
+      end
+
+      {:ok, pid} = NaiveOtp.GenServer.start_link(GenServerTest.Sys0, nil)
+
+      assert :sys.get_state(pid) == 0
+    end
+
+    test "should set new state via :sys.replace_state/2 call" do
+      defmodule GenServerTest.Sys1 do
+        use NaiveOtp.GenServer
+
+        def init(_state) do
+          {:ok, 0}
+        end
+      end
+
+      {:ok, pid} = NaiveOtp.GenServer.start_link(GenServerTest.Sys1, nil)
+
+      :sys.replace_state(pid, fn _current_state -> 1 end)
+      assert :sys.get_state(pid) == 1
+    end
+  end
+
   describe "handle_call/3" do
     test "should return result" do
       {:ok, pid} = NaiveOtp.GenServer.start_link(Counter, nil)
@@ -92,7 +123,7 @@ defmodule GenServerTest do
 
       assert NaiveOtp.GenServer.call(pid, :get) == 0
       NaiveOtp.GenServer.cast(pid, :increase)
-      assert NaiveOtp.GenServer.call(pid, :get) == 1
+      assert :sys.get_state(pid) == 1
     end
   end
 
@@ -135,7 +166,7 @@ defmodule GenServerTest do
 
       send(pid, :expected_message)
 
-      assert NaiveOtp.GenServer.call(pid, :get) == 1
+      assert :sys.get_state(pid) == 1
     end
   end
 end

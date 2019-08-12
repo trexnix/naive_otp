@@ -22,7 +22,7 @@ defmodule NaiveOtp.GenServer do
   @doc """
   Mimic some behaviours described here: https://hexdocs.pm/elixir/GenServer.html#start_link/3
   """
-  def start_link(mod, init_arg, opts \\ []) do
+  def start_link(mod, init_arg, _opts \\ []) do
     parent = self()
 
     spawn_link(fn ->
@@ -62,6 +62,15 @@ defmodule NaiveOtp.GenServer do
 
   defp loop(mod, state) do
     receive do
+      {:system, {pid, ref} = _from, :get_state} ->
+        send(pid, {ref, state})
+        loop(mod, state)
+
+      {:system, {pid, ref} = _from, {:replace_state, func}} when is_function(func) ->
+        new_state = func.(state)
+        send(pid, {ref, new_state})
+        loop(mod, new_state)
+
       {:"$call", caller, request} ->
         {:reply, return_value, new_state} = apply(mod, :handle_call, [request, caller, state])
         send(caller, {:"$call_resp", return_value})
